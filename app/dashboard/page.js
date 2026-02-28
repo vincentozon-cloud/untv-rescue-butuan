@@ -1,11 +1,12 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { MapPin, Clock, User, Activity, CheckCircle, Trash2 } from 'lucide-react';
+import { MapPin, Clock, User, Activity, CheckCircle, Trash2, VolumeX } from 'lucide-react';
 
 export default function ServantDashboard() {
   const [alerts, setAlerts] = useState([]);
   const [view, setView] = useState('active');
+  const audioRef = useRef(null);
 
   const fetchAlerts = async () => {
     const { data } = await supabase.from('emergency_alerts').select('*').order('created_at', { ascending: false });
@@ -16,7 +17,13 @@ export default function ServantDashboard() {
     fetchAlerts();
     const channel = supabase.channel('untv-realtime').on('postgres_changes', 
       { event: 'INSERT', schema: 'public', table: 'emergency_alerts' }, 
-      (p) => { setAlerts(c => [p.new, ...c]); }
+      (p) => { 
+        setAlerts(c => [p.new, ...c]); 
+        // TRIGGER SIREN
+        if (audioRef.current) {
+          audioRef.current.play().catch(e => console.log("Playback blocked until user interacts with page"));
+        }
+      }
     ).subscribe();
     return () => supabase.removeChannel(channel);
   }, []);
@@ -33,15 +40,31 @@ export default function ServantDashboard() {
     }
   };
 
+  const stopSiren = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+  };
+
   const filtered = alerts.filter(a => view === 'active' ? a.status !== 'RESOLVED' : a.status === 'RESOLVED');
 
   return (
     <div style={{ backgroundColor: '#f0f2f5', minHeight: '100vh', paddingBottom: '80px', fontFamily: 'sans-serif' }}>
+      {/* Hidden Audio Element */}
+      <audio ref={audioRef} src="/siren.mp3" loop />
+
       <header style={{ backgroundColor: 'white', borderBottom: '10px solid #CC0000', boxShadow: '0 4px 25px rgba(0,0,0,0.15)', padding: '20px 40px' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h1 style={{ color: '#003366', fontSize: '50px', fontWeight: '950', fontStyle: 'italic', margin: 0, lineHeight: '0.8' }}>UNTV</h1>
-            <div style={{ backgroundColor: '#CC0000', color: 'white', display: 'inline-block', padding: '3px 10px', fontSize: '12px', fontWeight: '900', marginTop: '6px' }}>NEWS & RESCUE</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <div>
+              <h1 style={{ color: '#003366', fontSize: '50px', fontWeight: '950', fontStyle: 'italic', margin: 0, lineHeight: '0.8' }}>UNTV</h1>
+              <div style={{ backgroundColor: '#CC0000', color: 'white', display: 'inline-block', padding: '3px 10px', fontSize: '12px', fontWeight: '900', marginTop: '6px' }}>NEWS & RESCUE</div>
+            </div>
+            {/* Silence Button */}
+            <button onClick={stopSiren} style={{ backgroundColor: '#ef444415', color: '#ef4444', border: '2px solid #ef4444', padding: '10px 15px', borderRadius: '12px', cursor: 'pointer', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <VolumeX size={18} /> SILENCE
+            </button>
           </div>
           <div style={{ display: 'flex', backgroundColor: '#003366', borderRadius: '15px', padding: '6px shadow-xl' }}>
             <button onClick={() => setView('active')} style={{ backgroundColor: view === 'active' ? '#CC0000' : 'transparent', color: 'white', border: 'none', padding: '12px 30px', fontWeight: '900', fontStyle: 'italic', cursor: 'pointer', borderRadius: '10px', transition: '0.3s' }}>ACTIVE FEED</button>
