@@ -12,7 +12,6 @@ export default function PanicButton() {
     if (status !== 'READY') return;
     setStatus('SENDING');
     
-    // Haptic feedback (Vibrate)
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       navigator.vibrate([200, 100, 200]);
     }
@@ -32,8 +31,6 @@ export default function PanicButton() {
       ]);
       
       setStatus('SUCCESS');
-      
-      // Voice Confirmation
       const speech = new SpeechSynthesisUtterance("Emergency alert sent. Help is on the way.");
       window.speechSynthesis.speak(speech);
 
@@ -44,11 +41,20 @@ export default function PanicButton() {
     });
   };
 
+  // THE UPDATED "AGGRESSIVE" VOLUME KEY LOGIC
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Listen for Volume Up (175) or Volume Down (174)
-      if (e.keyCode === 174 || e.keyCode === 175 || e.key === 'AudioVolumeUp' || e.key === 'AudioVolumeDown') {
+      const isVolumeKey = 
+        e.key === 'AudioVolumeUp' || 
+        e.key === 'AudioVolumeDown' || 
+        e.key === 'VolumeUp' || 
+        e.key === 'VolumeDown' || 
+        e.keyCode === 174 || 
+        e.keyCode === 175;
+
+      if (isVolumeKey) {
         e.preventDefault(); 
+        e.stopPropagation();
         if (!isPressingRef.current) {
           isPressingRef.current = true;
           timerRef.current = setTimeout(triggerSOS, 3000);
@@ -57,17 +63,22 @@ export default function PanicButton() {
     };
 
     const handleKeyUp = (e) => {
-      if (e.keyCode === 174 || e.keyCode === 175 || e.key === 'AudioVolumeUp' || e.key === 'AudioVolumeDown') {
+      const isVolumeKey = 
+        e.key?.includes('Volume') || 
+        e.keyCode === 174 || 
+        e.keyCode === 175;
+
+      if (isVolumeKey) {
         isPressingRef.current = false;
         clearTimeout(timerRef.current);
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('keyup', handleKeyUp, true);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('keyup', handleKeyUp, true);
     };
   }, [status]);
 
@@ -77,7 +88,6 @@ export default function PanicButton() {
   return (
     <div style={{ backgroundColor: '#001a33', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', color: 'white', overflow: 'hidden', fontFamily: 'sans-serif' }}>
       
-      {/* Branding Header */}
       <div style={{ backgroundColor: 'white', width: '100%', paddingTop: '30px', paddingBottom: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', borderBottom: '8px solid #CC0000', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
         <h1 style={{ color: '#003366', fontSize: '60px', fontWeight: '900', fontStyle: 'italic', margin: 0, lineHeight: '0.8' }}>UNTV</h1>
         <div style={{ backgroundColor: '#CC0000', color: 'white', padding: '4px 15px', marginTop: '10px', fontWeight: '900', fontSize: '12px', letterSpacing: '3px' }}>NEWS & RESCUE</div>
@@ -88,7 +98,6 @@ export default function PanicButton() {
         <div style={{ height: '3px', backgroundColor: '#CC0000', width: '60px', margin: '8px auto' }}></div>
       </div>
 
-      {/* The Squeeze Button */}
       <div style={{ position: 'relative' }}>
         <div style={{ 
           position: 'absolute', inset: '-40px', borderRadius: '50%', filter: 'blur(40px)', opacity: '0.4',
@@ -113,7 +122,6 @@ export default function PanicButton() {
         </button>
       </div>
 
-      {/* Instructional Footer */}
       <div style={{ backgroundColor: '#003366', width: '100%', padding: '25px', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
         <p style={{ margin: 0, color: 'rgba(255,255,255,0.7)', fontWeight: 'bold', fontSize: '11px', letterSpacing: '2px', textTransform: 'uppercase' }}>
           HOLD VOLUME KEY OR RED BUTTON
