@@ -40,6 +40,28 @@ export default function ServantDashboard() {
     }
   };
 
+  // NEW: Bulk Delete Function
+  const deleteAllInView = async () => {
+    const statusToClear = view === 'active' ? 'PENDING' : 'RESOLVED';
+    const confirmMsg = `Are you sure you want to PERMANENTLY delete ALL ${view} alerts? This cannot be undone.`;
+    
+    if (confirm(confirmMsg)) {
+      const { error } = await supabase
+        .from('emergency_alerts')
+        .delete()
+        .eq('status', statusToClear);
+
+      if (!error) {
+        // Update local state to remove deleted items
+        setAlerts(current => current.filter(a => 
+          view === 'active' ? a.status === 'RESOLVED' : a.status !== 'RESOLVED'
+        ));
+      } else {
+        alert("Error clearing database. Please check connection.");
+      }
+    }
+  };
+
   const stopSiren = () => {
     if (audioRef.current) {
       audioRef.current.pause();
@@ -61,11 +83,20 @@ export default function ServantDashboard() {
               <h1 style={{ color: '#003366', fontSize: '50px', fontWeight: '950', fontStyle: 'italic', margin: 0, lineHeight: '0.8' }}>UNTV</h1>
               <div style={{ backgroundColor: '#CC0000', color: 'white', display: 'inline-block', padding: '3px 10px', fontSize: '12px', fontWeight: '900', marginTop: '6px' }}>NEWS & RESCUE</div>
             </div>
-            {/* Silence Button */}
-            <button onClick={stopSiren} style={{ backgroundColor: '#ef444415', color: '#ef4444', border: '2px solid #ef4444', padding: '10px 15px', borderRadius: '12px', cursor: 'pointer', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <VolumeX size={18} /> SILENCE
-            </button>
+            
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {/* Silence Button */}
+              <button onClick={stopSiren} style={{ backgroundColor: '#ef444415', color: '#ef4444', border: '2px solid #ef4444', padding: '10px 15px', borderRadius: '12px', cursor: 'pointer', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <VolumeX size={18} /> SILENCE
+              </button>
+              
+              {/* NEW: Clear All Button */}
+              <button onClick={deleteAllInView} style={{ backgroundColor: '#CC0000', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '12px', cursor: 'pointer', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Trash2 size={18} /> CLEAR {view.toUpperCase()}
+              </button>
+            </div>
           </div>
+
           <div style={{ display: 'flex', backgroundColor: '#003366', borderRadius: '15px', padding: '6px shadow-xl' }}>
             <button onClick={() => setView('active')} style={{ backgroundColor: view === 'active' ? '#CC0000' : 'transparent', color: 'white', border: 'none', padding: '12px 30px', fontWeight: '900', fontStyle: 'italic', cursor: 'pointer', borderRadius: '10px', transition: '0.3s' }}>ACTIVE FEED</button>
             <button onClick={() => setView('history')} style={{ backgroundColor: view === 'history' ? '#CC0000' : 'transparent', color: 'white', border: 'none', padding: '12px 30px', fontWeight: '900', fontStyle: 'italic', cursor: 'pointer', borderRadius: '10px', transition: '0.3s' }}>RESCUE HISTORY</button>
@@ -101,7 +132,7 @@ export default function ServantDashboard() {
       </main>
 
       <div style={{ position: 'fixed', bottom: 0, width: '100%', backgroundColor: '#CC0000', color: 'white', padding: '12px 0', fontWeight: '900', fontStyle: 'italic', textTransform: 'uppercase', fontSize: '14px', borderTop: '4px solid white' }}>
-        <marquee scrollamount="10">TULONG MUNA BAGO BALITA • BUTUAN LOCALE RESCUE COMMAND • REAL-TIME DISPATCH ACTIVE • GOD BLESSED THE PEACEMAKERS •</marquee>
+        <marquee scrollamount="10">TULONG MUNA BAGO BALITA • BUTUAN LOCALE RESCUE COMMAND • REAL-TIME DISPATCH ACTIVE • TO GOD BE THE GLORY •</marquee>
       </div>
     </div>
   );
