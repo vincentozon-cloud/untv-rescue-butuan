@@ -1,7 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { ShieldAlert, Pill, Plus, X, Clock, History } from 'lucide-react';
+import { ShieldAlert, Pill, Plus, X, Clock, History, Waves, Zap, Mountain, AlertTriangle } from 'lucide-react';
 // IMPORT the new medication logic
 import MedicationCard, { useMedication } from '@/components/Medication/MedicationCard';
 
@@ -10,9 +10,10 @@ export default function PanicButton() {
   const [progress, setProgress] = useState(0);
   const progressRef = useRef(null);
   
-  // NEW STATES FOR FORM, ALARMS & HISTORY
+  // NEW STATES FOR FORM, ALARMS, HISTORY & DISASTER
   const [showAdd, setShowAdd] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showDisaster, setShowDisaster] = useState(false);
   const [newName, setNewName] = useState('');
   const [newFreq, setNewFreq] = useState('1x');
   const [newTime, setNewTime] = useState('08:00');
@@ -100,7 +101,7 @@ export default function PanicButton() {
       style={{ 
         backgroundColor: '#001a33', minHeight: '100vh', display: 'flex', flexDirection: 'column', 
         alignItems: 'center', justifyContent: 'flex-start', color: 'white', overflowY: 'auto', 
-        fontFamily: 'sans-serif', userSelect: 'none' 
+        fontFamily: 'sans-serif', userSelect: 'none', paddingBottom: '100px' 
       }}
     >
       {/* Header */}
@@ -223,7 +224,58 @@ export default function PanicButton() {
         )}
       </div>
 
-      <div style={{ padding: '20px', fontSize: '10px', letterSpacing: '2px', marginTop: 'auto' }}>TULONG MUNA BAGO BALITA</div>
+      {/* --- DISASTER TRAY --- */}
+      <div 
+        onClick={() => setShowDisaster(!showDisaster)}
+        style={{
+          position: 'fixed', bottom: 0, width: '100%', maxWidth: '450px',
+          backgroundColor: '#CC0000', borderRadius: '30px 30px 0 0',
+          padding: '15px 20px', transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+          transform: showDisaster ? 'translateY(0)' : 'translateY(calc(100% - 60px))',
+          boxShadow: '0 -10px 30px rgba(0,0,0,0.5)', zIndex: 100, cursor: 'pointer'
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
+          <div style={{ width: '40px', height: '4px', backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: '2px' }} />
+        </div>
+        
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <AlertTriangle color="white" size={24} />
+            <h3 style={{ margin: 0, fontWeight: '900', fontStyle: 'italic', fontSize: '16px' }}>DISASTER REPORTING</h3>
+          </div>
+          <span style={{ fontSize: '10px', backgroundColor: 'white', color: '#CC0000', padding: '2px 8px', borderRadius: '20px', fontWeight: '900' }}>
+            CONSTRUCTION
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', gap: '10px', justifyContent: 'space-between', opacity: showDisaster ? 1 : 0, transition: '0.3s' }}>
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '15px', borderRadius: '20px', border: '2px dashed rgba(255,255,255,0.4)', marginBottom: '5px' }}>
+              <Waves size={30} />
+            </div>
+            <span style={{ fontSize: '10px', fontWeight: '900' }}>FLOOD</span>
+          </div>
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '15px', borderRadius: '20px', border: '2px dashed rgba(255,255,255,0.4)', marginBottom: '5px' }}>
+              <Zap size={30} />
+            </div>
+            <span style={{ fontSize: '10px', fontWeight: '900' }}>QUAKE</span>
+          </div>
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '15px', borderRadius: '20px', border: '2px dashed rgba(255,255,255,0.4)', marginBottom: '5px' }}>
+              <Mountain size={30} />
+            </div>
+            <span style={{ fontSize: '10px', fontWeight: '900' }}>LANDSLIDE</span>
+          </div>
+        </div>
+        
+        <p style={{ textAlign: 'center', fontSize: '11px', marginTop: '20px', fontWeight: 'bold', fontStyle: 'italic', color: 'rgba(255,255,255,0.8)' }}>
+          Coming Soon: NAR Disaster Dispatch
+        </p>
+      </div>
+
+      <div style={{ padding: '20px', fontSize: '10px', letterSpacing: '2px' }}>TULONG MUNA BAGO BALITA</div>
     </div>
   );
 }
