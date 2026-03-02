@@ -9,6 +9,7 @@ export default function PanicButton() {
   const [status, setStatus] = useState('READY');
   const [progress, setProgress] = useState(0);
   const progressRef = useRef(null);
+  const alarmAudioRef = useRef(null); // Reference for the alarm audio
   
   // NEW STATES FOR FORM, ALARMS, HISTORY & DISASTER
   const [showAdd, setShowAdd] = useState(false);
@@ -21,6 +22,12 @@ export default function PanicButton() {
   // INITIALIZE medication hook
   const { meds, recordDose, addMed, removeMed } = useMedication();
 
+  // Initialize Audio Object on Mount
+  useEffect(() => {
+    alarmAudioRef.current = new Audio('https://actions.google.com/sounds/v1/alarms/digital_alarm_clock.ogg');
+    alarmAudioRef.current.loop = true;
+  }, []);
+
   // --- BACKGROUND ALARM CHECKER ---
   useEffect(() => {
     const checkAlarms = setInterval(() => {
@@ -30,6 +37,20 @@ export default function PanicButton() {
 
       meds.forEach(med => {
         if (med.reminderTime === currentTime && med.lastTaken !== today) {
+          // 1. Play Alarm Audio
+          if (alarmAudioRef.current) {
+            alarmAudioRef.current.play().catch(() => console.log("Waiting for user interaction to play audio"));
+            
+            // Auto-stop audio after 15 seconds
+            setTimeout(() => {
+              if (alarmAudioRef.current) {
+                alarmAudioRef.current.pause();
+                alarmAudioRef.current.currentTime = 0;
+              }
+            }, 15000);
+          }
+
+          // 2. Voice Reminder
           const speech = new SpeechSynthesisUtterance(`Attention. It is time to take your ${med.name}. Please check your screen.`);
           speech.rate = 0.9;
           window.speechSynthesis.speak(speech);
@@ -99,14 +120,23 @@ export default function PanicButton() {
   return (
     <div 
       style={{ 
-        backgroundColor: '#001a33', minHeight: '100vh', display: 'flex', flexDirection: 'column', 
-        alignItems: 'center', justifyContent: 'flex-start', color: 'white', overflowY: 'auto', 
-        fontFamily: 'sans-serif', userSelect: 'none', paddingBottom: '100px' 
+        backgroundColor: '#001a33', 
+        height: '100dvh', // Changed from minHeight 100vh to height 100dvh for iPhone fit
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'flex-start', 
+        color: 'white', 
+        overflowY: 'auto', 
+        fontFamily: 'sans-serif', 
+        userSelect: 'none', 
+        paddingBottom: '120px', // Increased padding for disaster tray clearance
+        position: 'relative'
       }}
     >
       {/* Header */}
-      <div style={{ backgroundColor: 'white', width: '100%', padding: '20px 0', textAlign: 'center', borderBottom: '8px solid #CC0000' }}>
-        <h1 style={{ color: '#003366', fontSize: '40px', fontWeight: '900', fontStyle: 'italic', margin: 0 }}>UNTV</h1>
+      <div style={{ backgroundColor: 'white', width: '100%', padding: '15px 0', textAlign: 'center', borderBottom: '8px solid #CC0000', flexShrink: 0 }}>
+        <h1 style={{ color: '#003366', fontSize: '32px', fontWeight: '900', fontStyle: 'italic', margin: 0 }}>UNTV</h1>
         <div style={{ backgroundColor: '#CC0000', color: 'white', padding: '2px 10px', display: 'inline-block', fontWeight: '900', fontSize: '10px' }}>NEWS & RESCUE</div>
       </div>
 
@@ -114,10 +144,10 @@ export default function PanicButton() {
       <div 
         onMouseDown={startPress} onMouseUp={cancelPress}
         onTouchStart={startPress} onTouchEnd={cancelPress}
-        style={{ textAlign: 'center', padding: '40px 0', width: '100%', touchAction: 'none' }}
+        style={{ textAlign: 'center', padding: '30px 0', width: '100%', touchAction: 'none', flexShrink: 0 }}
       >
         <div style={{ 
-          width: '240px', height: '240px', borderRadius: '50%', margin: '0 auto', position: 'relative',
+          width: '200px', height: '200px', borderRadius: '50%', margin: '0 auto', position: 'relative',
           border: '10px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center'
         }}>
           <div style={{ 
@@ -125,7 +155,7 @@ export default function PanicButton() {
             border: `10px solid ${status === 'SUCCESS' ? '#00FF00' : '#CC0000'}`,
             clipPath: `inset(${100 - progress}% 0 0 0)`, transition: '0.1s'
           }} />
-          <ShieldAlert size={80} color={progress > 0 ? '#CC0000' : 'white'} />
+          <ShieldAlert size={70} color={progress > 0 ? '#CC0000' : 'white'} />
         </div>
         
         <h2 style={{ marginTop: '20px', fontWeight: '900', fontStyle: 'italic' }}>
@@ -275,7 +305,7 @@ export default function PanicButton() {
         </p>
       </div>
 
-      <div style={{ padding: '20px', fontSize: '10px', letterSpacing: '2px' }}>TULONG MUNA BAGO BALITA</div>
+      <div style={{ padding: '20px', fontSize: '10px', letterSpacing: '2px', flexShrink: 0 }}>TULONG MUNA BAGO BALITA</div>
     </div>
   );
 }
