@@ -37,9 +37,20 @@ export default function PanicButton() {
 
       meds.forEach(med => {
         if (med.reminderTime === currentTime && med.lastTaken !== today) {
-          // 1. Play Alarm Audio
+          
+          // 1. STAGGERED PLAYBACK: Start Alarm Audio First
           if (alarmAudioRef.current) {
-            alarmAudioRef.current.play().catch(() => console.log("Waiting for user interaction to play audio"));
+            alarmAudioRef.current.volume = 0.4; // Lower volume so voice is audible
+            alarmAudioRef.current.play()
+              .then(() => {
+                // 2. Wait 1.5 seconds, then trigger the Voice Reminder
+                setTimeout(() => {
+                  const speech = new SpeechSynthesisUtterance(`Attention. It is time to take your ${med.name}. Please check your screen.`);
+                  speech.rate = 0.9;
+                  window.speechSynthesis.speak(speech);
+                }, 1500);
+              })
+              .catch(() => console.log("Waiting for user interaction to play audio"));
             
             // Auto-stop audio after 15 seconds
             setTimeout(() => {
@@ -49,11 +60,6 @@ export default function PanicButton() {
               }
             }, 15000);
           }
-
-          // 2. Voice Reminder
-          const speech = new SpeechSynthesisUtterance(`Attention. It is time to take your ${med.name}. Please check your screen.`);
-          speech.rate = 0.9;
-          window.speechSynthesis.speak(speech);
           
           if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
         }
@@ -121,7 +127,7 @@ export default function PanicButton() {
     <div 
       style={{ 
         backgroundColor: '#001a33', 
-        height: '100dvh', // Changed from minHeight 100vh to height 100dvh for iPhone fit
+        height: '100dvh', // Use dvh for iPhone viewport fit
         display: 'flex', 
         flexDirection: 'column', 
         alignItems: 'center', 
@@ -130,7 +136,7 @@ export default function PanicButton() {
         overflowY: 'auto', 
         fontFamily: 'sans-serif', 
         userSelect: 'none', 
-        paddingBottom: '120px', // Increased padding for disaster tray clearance
+        paddingBottom: '120px', 
         position: 'relative'
       }}
     >
