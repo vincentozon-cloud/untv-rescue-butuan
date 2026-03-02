@@ -24,9 +24,24 @@ export default function PanicButton() {
 
   // Initialize Audio Object on Mount
   useEffect(() => {
-    alarmAudioRef.current = new Audio('https://actions.google.com/sounds/v1/alarms/digital_alarm_clock.ogg');
+    // Reference to your local file in /public/beep.mp3
+    alarmAudioRef.current = new Audio('/beep.mp3');
     alarmAudioRef.current.loop = true;
   }, []);
+
+  // KILL SWITCH: Function to stop audio immediately
+  const stopAlarm = () => {
+    if (alarmAudioRef.current) {
+      alarmAudioRef.current.pause();
+      alarmAudioRef.current.currentTime = 0;
+    }
+  };
+
+  // WRAPPER for recording dose that also kills the alarm
+  const handleRecordDose = (id) => {
+    recordDose(id);
+    stopAlarm();
+  };
 
   // --- BACKGROUND ALARM CHECKER ---
   useEffect(() => {
@@ -40,7 +55,7 @@ export default function PanicButton() {
           
           // 1. STAGGERED PLAYBACK: Start Alarm Audio First
           if (alarmAudioRef.current) {
-            alarmAudioRef.current.volume = 0.4; // Lower volume so voice is audible
+            alarmAudioRef.current.volume = 0.5; 
             alarmAudioRef.current.play()
               .then(() => {
                 // 2. Wait 1.5 seconds, then trigger the Voice Reminder
@@ -52,12 +67,9 @@ export default function PanicButton() {
               })
               .catch(() => console.log("Waiting for user interaction to play audio"));
             
-            // Auto-stop audio after 15 seconds
+            // Auto-stop audio after 15 seconds (Safety Timeout)
             setTimeout(() => {
-              if (alarmAudioRef.current) {
-                alarmAudioRef.current.pause();
-                alarmAudioRef.current.currentTime = 0;
-              }
+              stopAlarm();
             }, 15000);
           }
           
@@ -127,7 +139,7 @@ export default function PanicButton() {
     <div 
       style={{ 
         backgroundColor: '#001a33', 
-        height: '100dvh', // Use dvh for iPhone viewport fit
+        height: '100dvh', // Use dvh for dynamic iPhone viewport fit
         display: 'flex', 
         flexDirection: 'column', 
         alignItems: 'center', 
@@ -136,8 +148,9 @@ export default function PanicButton() {
         overflowY: 'auto', 
         fontFamily: 'sans-serif', 
         userSelect: 'none', 
-        paddingBottom: '120px', 
-        position: 'relative'
+        paddingBottom: '160px', // Extra padding for Safari address bar clearance
+        position: 'relative',
+        WebkitOverflowScrolling: 'touch'
       }}
     >
       {/* Header */}
@@ -255,19 +268,21 @@ export default function PanicButton() {
           <p style={{ textAlign: 'center', opacity: 0.5 }}>No medications scheduled.</p>
         ) : (
           meds.map(med => (
-            <MedicationCard key={med.id} med={med} onTake={recordDose} onRemove={removeMed} />
+            <MedicationCard key={med.id} med={med} onTake={handleRecordDose} onRemove={removeMed} />
           ))
         )}
       </div>
 
-      {/* --- DISASTER TRAY --- */}
+      {/* --- DISASTER TRAY (Safari Safe) --- */}
       <div 
         onClick={() => setShowDisaster(!showDisaster)}
         style={{
           position: 'fixed', bottom: 0, width: '100%', maxWidth: '450px',
           backgroundColor: '#CC0000', borderRadius: '30px 30px 0 0',
-          padding: '15px 20px', transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-          transform: showDisaster ? 'translateY(0)' : 'translateY(calc(100% - 60px))',
+          padding: '15px 20px',
+          paddingBottom: 'calc(15px + env(safe-area-inset-bottom))', // Safe area for iOS
+          transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+          transform: showDisaster ? 'translateY(0)' : 'translateY(calc(100% - 65px))',
           boxShadow: '0 -10px 30px rgba(0,0,0,0.5)', zIndex: 100, cursor: 'pointer'
         }}
       >

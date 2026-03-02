@@ -1,22 +1,33 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { ShieldAlert, Pill, Plus, X } from 'lucide-react';
+import { ShieldAlert, Pill, Plus, X, Clock, History, Waves, Zap, Mountain, AlertTriangle } from 'lucide-react';
 // IMPORT the medication logic
 import MedicationCard, { useMedication } from '@/components/Medication/MedicationCard';
 
 export default function PanicButton() {
   const [status, setStatus] = useState('READY');
-  const timerRef = useRef(null);
+  const [progress, setProgress] = useState(0);
+  const progressRef = useRef(null);
+  const alarmAudioRef = useRef(null); 
   
   // NEW STATES FOR FORM & ALARMS
   const [showAdd, setShowAdd] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showDisaster, setShowDisaster] = useState(false);
   const [newName, setNewName] = useState('');
   const [newFreq, setNewFreq] = useState('1x');
   const [newTime, setNewTime] = useState('08:00');
 
   // INITIALIZE medication hook
   const { meds, recordDose, addMed, removeMed } = useMedication();
+
+  // Initialize Custom Audio Object on Mount
+  useEffect(() => {
+    // Reference to your local file in /public/beep.mp3
+    alarmAudioRef.current = new Audio('/beep.mp3');
+    alarmAudioRef.current.loop = true;
+  }, []);
 
   // --- BACKGROUND ALARM CHECKER ---
   useEffect(() => {
@@ -27,13 +38,35 @@ export default function PanicButton() {
 
       meds.forEach(med => {
         if (med.reminderTime === currentTime && med.lastTaken !== today) {
-          const speech = new SpeechSynthesisUtterance(`Reminder: It is time to take your ${med.name}.`);
-          speech.rate = 0.9;
-          window.speechSynthesis.speak(speech);
+          
+          // 1. STAGGERED PLAYBACK: Start custom beep first
+          if (alarmAudioRef.current) {
+            alarmAudioRef.current.volume = 0.5;
+            alarmAudioRef.current.play()
+              .then(() => {
+                // 2. Wait 1.5 seconds, then trigger the Voice Reminder
+                setTimeout(() => {
+                  const speech = new SpeechSynthesisUtterance(`Attention. It is time to take your ${med.name}. Please check your screen.`);
+                  speech.rate = 0.9;
+                  window.speechSynthesis.speak(speech);
+                }, 1500);
+              })
+              .catch(() => console.log("Waiting for user interaction to play audio"));
+            
+            // Auto-stop audio after 15 seconds
+            setTimeout(() => {
+              if (alarmAudioRef.current) {
+                alarmAudioRef.current.pause();
+                alarmAudioRef.current.currentTime = 0;
+              }
+            }, 15000);
+          }
+          
           if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
         }
       });
     }, 60000);
+
     return () => clearInterval(checkAlarms);
   }, [meds]);
 
@@ -46,71 +79,104 @@ export default function PanicButton() {
   };
 
   const triggerSOS = async () => {
+    if (status !== 'READY') return;
     setStatus('SENDING');
-    const name = localStorage.getItem('user_name') || 'Unknown';
-    const condition = localStorage.getItem('user_condition') || 'N/A';
+    setProgress(0);
+    
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate([500, 200, 500]);
+    }
+
+    const name = localStorage.getItem('user_name') || 'Unknown Member';
+    const condition = localStorage.getItem('user_condition') || 'None';
 
     navigator.geolocation.getCurrentPosition(async (position) => {
       const { latitude, longitude } = position.coords;
       await supabase.from('emergency_alerts').insert([
         { elder_name: name, medical_condition: condition, coordinates: `${latitude},${longitude}`, status: 'PENDING' }
       ]);
+      
       setStatus('SUCCESS');
       const speech = new SpeechSynthesisUtterance("Alert sent to Butuan Rescue.");
       window.speechSynthesis.speak(speech);
       setTimeout(() => setStatus('READY'), 5000);
+    }, (err) => {
+      alert("Enable GPS to send alert.");
+      setStatus('READY');
     });
   };
 
-  const startPress = () => { timerRef.current = setTimeout(triggerSOS, 3000); };
-  const cancelPress = () => { clearTimeout(timerRef.current); };
+  const startPress = () => {
+    if (status !== 'READY') return;
+    let val = 0;
+    progressRef.current = setInterval(() => {
+      val += 2;
+      setProgress(val);
+      if (val >= 100) {
+        clearInterval(progressRef.current);
+        triggerSOS();
+      }
+    }, 30);
+  };
+
+  const cancelPress = () => {
+    clearInterval(progressRef.current);
+    setProgress(0);
+  };
 
   return (
-    <div style={{ backgroundColor: '#001a33', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', color: 'white', overflowY: 'auto' }}>
-      
+    <div 
+      style={{ 
+        backgroundColor: '#001a33', 
+        height: '100dvh', // Dynamic viewport height for iPhone
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'flex-start', 
+        color: 'white', 
+        overflowY: 'auto', 
+        fontFamily: 'sans-serif', 
+        userSelect: 'none', 
+        paddingBottom: '160px', // Extra padding for tray/safari bar clearance
+        position: 'relative'
+      }}
+    >
       {/* Top Banner */}
-      <div style={{ backgroundColor: 'white', width: '100%', paddingTop: '30px', paddingBottom: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', borderBottom: '8px solid #CC0000', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-        <h1 style={{ color: '#003366', fontSize: '60px', fontWeight: '900', fontStyle: 'italic', margin: 0, lineHeight: '0.8' }}>UNTV</h1>
-        <div style={{ backgroundColor: '#CC0000', color: 'white', padding: '4px 15px', marginTop: '10px', fontWeight: '900', fontSize: '12px', letterSpacing: '3px' }}>NEWS & RESCUE</div>
+      <div style={{ backgroundColor: 'white', width: '100%', padding: '15px 0', textAlign: 'center', borderBottom: '8px solid #CC0000', flexShrink: 0 }}>
+        <h1 style={{ color: '#003366', fontSize: '32px', fontWeight: '900', fontStyle: 'italic', margin: 0 }}>UNTV</h1>
+        <div style={{ backgroundColor: '#CC0000', color: 'white', padding: '2px 10px', display: 'inline-block', fontWeight: '900', fontSize: '10px' }}>NEWS & RESCUE</div>
       </div>
 
-      {/* Locale Label */}
-      <div style={{ textAlign: 'center', marginTop: '20px' }}>
-        <h2 style={{ fontSize: '28px', fontWeight: '900', fontStyle: 'italic', letterSpacing: '-1px', margin: 0 }}>BUTUAN LOCALE</h2>
-        <div style={{ height: '3px', backgroundColor: '#CC0000', width: '60px', margin: '8px auto' }}></div>
-      </div>
-
-      {/* SOS Button Container */}
-      <div style={{ position: 'relative', margin: '40px 0' }}>
+      {/* SOS Visual Ring Section */}
+      <div 
+        onMouseDown={startPress} onMouseUp={cancelPress}
+        onTouchStart={startPress} onTouchEnd={cancelPress}
+        style={{ textAlign: 'center', padding: '30px 0', width: '100%', touchAction: 'none', flexShrink: 0 }}
+      >
         <div style={{ 
-          position: 'absolute', inset: '-40px', borderRadius: '50%', filter: 'blur(40px)', opacity: '0.4',
-          backgroundColor: status === 'READY' ? '#CC0000' : '#003366',
-          animation: 'pulse 2s infinite'
-        }} />
-        <button
-          onMouseDown={startPress} onMouseUp={cancelPress}
-          onTouchStart={startPress} onTouchEnd={cancelPress}
-          style={{
-            position: 'relative', width: '220px', height: '220px', borderRadius: '50%', cursor: 'pointer',
-            border: status === 'READY' ? '12px solid #8b0000' : '12px solid #001a33',
-            backgroundColor: status === 'READY' ? '#CC0000' : (status === 'SENDING' ? '#003366' : '#008000'),
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.6)', transition: 'all 0.2s'
-          }}
-        >
-          <ShieldAlert color="white" size={60} strokeWidth={3} />
-          <span style={{ color: 'white', fontSize: '18px', fontWeight: '900', fontStyle: 'italic' }}>
-            {status === 'READY' ? 'HOLD 3 SEC' : status === 'SENDING' ? 'SENDING...' : 'SENT!'}
-          </span>
-        </button>
+          width: '200px', height: '200px', borderRadius: '50%', margin: '0 auto', position: 'relative',
+          border: '10px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{ 
+            position: 'absolute', inset: '-10px', borderRadius: '50%', 
+            border: `10px solid ${status === 'SUCCESS' ? '#00FF00' : '#CC0000'}`,
+            clipPath: `inset(${100 - progress}% 0 0 0)`, transition: '0.1s'
+          }} />
+          <ShieldAlert size={70} color={progress > 0 ? '#CC0000' : 'white'} />
+        </div>
+        
+        <h2 style={{ marginTop: '20px', fontWeight: '900', fontStyle: 'italic' }}>
+          {status === 'READY' ? (progress > 0 ? 'HOLDING...' : 'SQUEEZE SCREEN') : status}
+        </h2>
+        <p style={{ fontSize: '12px', opacity: 0.6 }}>ANYWHERE ON RING TO CALL FOR HELP</p>
       </div>
 
-      {/* UPGRADED: HEALTH CHECK SECTION */}
-      <div style={{ width: '100%', maxWidth: '400px', padding: '0 20px', marginBottom: '40px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '2px solid rgba(255,255,255,0.1)', paddingBottom: '10px' }}>
+      {/* HEALTH CHECK SECTION */}
+      <div style={{ width: '100%', maxWidth: '450px', padding: '0 20px', marginBottom: '40px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Pill size={24} color="#10b981" />
-            <h3 style={{ fontSize: '20px', fontWeight: '900', margin: 0 }}>DAILY HEALTH CHECK</h3>
+            <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>DAILY HEALTH CHECK</h3>
           </div>
           <button 
             onClick={() => setShowAdd(!showAdd)}
@@ -126,33 +192,33 @@ export default function PanicButton() {
             <input 
               placeholder="Medicine Name..." 
               value={newName} onChange={(e) => setNewName(e.target.value)}
-              style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '2px solid #e2e8f0', marginBottom: '12px', fontSize: '16px' }}
+              style={{ width: '100%', padding: '15px', borderRadius: '12px', border: '2px solid #e2e8f0', marginBottom: '15px', fontSize: '16px' }}
             />
-            <div style={{ marginBottom: '12px' }}>
-              <p style={{ margin: '0 0 5px 0', fontWeight: '800', fontSize: '12px', color: '#64748b' }}>ALARM TIME:</p>
+            <div style={{ marginBottom: '15px' }}>
+              <p style={{ margin: '0 0 8px 0', fontWeight: '800', fontSize: '12px', color: '#64748b' }}>ALARM TIME:</p>
               <input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)}
-                style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '2px solid #e2e8f0', fontSize: '16px', fontWeight: 'bold' }}
+                style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '2px solid #e2e8f0', fontSize: '18px', fontWeight: 'bold' }}
               />
             </div>
-            <div style={{ display: 'flex', gap: '5px', marginBottom: '15px' }}>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
               {['1x', '2x', '3x', '4x'].map(f => (
                 <button key={f} onClick={() => setNewFreq(f)}
-                  style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', backgroundColor: newFreq === f ? '#10b981' : '#f1f5f9', color: newFreq === f ? 'white' : '#64748b', fontWeight: '900' }}
+                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: newFreq === f ? '#10b981' : '#f1f5f9', color: newFreq === f ? 'white' : '#64748b', fontWeight: '900' }}
                 >
                   {f}
                 </button>
               ))}
             </div>
             <button onClick={handleAddMed}
-              style={{ width: '100%', backgroundColor: '#003366', color: 'white', padding: '15px', borderRadius: '12px', fontWeight: '900', border: 'none' }}
+              style={{ width: '100%', backgroundColor: '#003366', color: 'white', padding: '16px', borderRadius: '12px', fontWeight: '900', border: 'none' }}
             >
-              SAVE MEDICINE
+              SAVE & SET ALARM
             </button>
           </div>
         )}
         
         {meds.length === 0 ? (
-          <p style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center', fontStyle: 'italic' }}>No medications added.</p>
+          <p style={{ textAlign: 'center', opacity: 0.5 }}>No medications scheduled.</p>
         ) : (
           meds.map(med => (
             <MedicationCard key={med.id} med={med} onTake={recordDose} onRemove={removeMed} />
@@ -160,12 +226,56 @@ export default function PanicButton() {
         )}
       </div>
 
-      {/* Footer Instructions */}
-      <div style={{ backgroundColor: '#003366', width: '100%', padding: '25px', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: 'auto' }}>
-        <p style={{ margin: 0, color: 'rgba(255,255,255,0.6)', fontWeight: 'bold', fontSize: '11px', letterSpacing: '2px', textTransform: 'uppercase' }}>
-          TULONG MUNA BAGO BALITA
-        </p>
+      {/* DISASTER TRAY (Safari-Safe Version) */}
+      <div 
+        onClick={() => setShowDisaster(!showDisaster)}
+        style={{
+          position: 'fixed', bottom: 0, width: '100%', maxWidth: '450px',
+          backgroundColor: '#CC0000', borderRadius: '30px 30px 0 0',
+          padding: '15px 20px',
+          paddingBottom: 'calc(15px + env(safe-area-inset-bottom))', // Safe area for iPhone
+          transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+          transform: showDisaster ? 'translateY(0)' : 'translateY(calc(100% - 75px))',
+          boxShadow: '0 -10px 30px rgba(0,0,0,0.5)', zIndex: 100, cursor: 'pointer'
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
+          <div style={{ width: '40px', height: '4px', backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: '2px' }} />
+        </div>
+        
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <AlertTriangle color="white" size={24} />
+            <h3 style={{ margin: 0, fontWeight: '900', fontStyle: 'italic', fontSize: '16px' }}>DISASTER REPORTING</h3>
+          </div>
+          <span style={{ fontSize: '10px', backgroundColor: 'white', color: '#CC0000', padding: '2px 8px', borderRadius: '20px', fontWeight: '900' }}>
+            CONSTRUCTION
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', gap: '10px', justifyContent: 'space-between', opacity: showDisaster ? 1 : 0, transition: '0.3s' }}>
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '15px', borderRadius: '20px', border: '2px dashed rgba(255,255,255,0.4)', marginBottom: '5px' }}>
+              <Waves size={30} />
+            </div>
+            <span style={{ fontSize: '10px', fontWeight: '900' }}>FLOOD</span>
+          </div>
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '15px', borderRadius: '20px', border: '2px dashed rgba(255,255,255,0.4)', marginBottom: '5px' }}>
+              <Zap size={30} />
+            </div>
+            <span style={{ fontSize: '10px', fontWeight: '900' }}>QUAKE</span>
+          </div>
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '15px', borderRadius: '20px', border: '2px dashed rgba(255,255,255,0.4)', marginBottom: '5px' }}>
+              <Mountain size={30} />
+            </div>
+            <span style={{ fontSize: '10px', fontWeight: '900' }}>LANDSLIDE</span>
+          </div>
+        </div>
       </div>
+
+      <div style={{ padding: '20px', fontSize: '10px', letterSpacing: '2px', flexShrink: 0 }}>TULONG MUNA BAGO BALITA</div>
     </div>
   );
 }
